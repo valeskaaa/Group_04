@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional, Dict
 from pydantic import BaseModel, ConfigDict
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 class MovieDataset(BaseModel):
@@ -205,3 +206,65 @@ class MovieDataset(BaseModel):
         plt.show()
 
         return histogram
+
+    def actor_distributions(self, gender: str, max_height: float, min_height: float, plot: bool = False) -> pd.DataFrame:
+        """
+        Filters actor data based on gender and height range, and optionally plots the height distribution.
+
+        Args:
+            gender (str): "All" or a specific gender from the dataset.
+            max_height (float): Maximum height threshold.
+            min_height (float): Minimum height threshold.
+            plot (bool, optional): If True, plots a histogram or density plot. Default is False.
+
+        Returns:
+            pd.DataFrame: Filtered actor dataset.
+        """
+
+        # Ensure valid input types
+        if not isinstance(gender, str):
+            raise Exception("Gender must be a string.")
+        if not isinstance(max_height, (int, float)) or not isinstance(min_height, (int, float)):
+            raise Exception("Height limits must be numerical values.")
+
+        # Ensure the dataset is loaded
+        if not hasattr(self, "character_metadata") or self.character_metadata is None:
+            raise Exception("Character metadata is not loaded.")
+
+        # Ensure required columns exist
+        required_columns = {"actor_gender", "actor_height"}
+        if not required_columns.issubset(self.character_metadata.columns):
+            raise Exception(f"Missing required columns: {required_columns - set(self.character_metadata.columns)}")
+
+        # Convert heights to numerical, forcing errors to NaN
+        self.character_metadata["actor_height"] = pd.to_numeric(self.character_metadata["actor_height"], errors="coerce")
+
+        # Drop missing height values
+        df = self.character_metadata.dropna(subset=["actor_height"]).copy()
+
+        # Standardize height units: Convert values > 10 (likely in cm) to meters
+        df.loc[df["actor_height"] > 10, "actor_height"] /= 100
+
+        # Apply gender filter
+        valid_genders = df["actor_gender"].dropna().unique().tolist() + ["All"]
+        if gender != "All":
+            if gender not in valid_genders:
+                raise Exception(f"Invalid gender value. Must be one of: {valid_genders}")
+            df = df[df["actor_gender"] == gender]
+
+        # Apply height range filter
+        df = df[(df["actor_height"] >= min_height) & (df["actor_height"] <= max_height)]
+
+        # If plot is True, create a density plot
+        if plot:
+            plt.figure(figsize=(10, 6))
+            
+            sns.kdeplot(df["actor_height"], color="blue", alpha=0.5)
+            plt.ylabel("Density")
+            plt.title(f"Density Plot of Actor Heights ({gender})")
+            
+            plt.xlabel("Actor Height (m)")
+            plt.grid(axis="y", linestyle="--", alpha=0.7)
+            plt.show()
+
+        return df
