@@ -5,6 +5,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Optional, Dict
 from pydantic import BaseModel, ConfigDict
+import matplotlib.pyplot as plt
 
 
 class MovieDataset(BaseModel):
@@ -144,15 +145,63 @@ class MovieDataset(BaseModel):
         """
         if not isinstance(N, int):
             raise Exception("N must be an integer.")
-
+        
         if not hasattr(self, "movie_metadata") or self.movie_metadata is None:
             raise Exception("Movie metadata is not loaded.")
-
+        
+        # Extract genres from the last column, which is a dictionary
         genre_series = self.movie_metadata["genres"].dropna()
-        genre_list = genre_series.str.split(", ")
-        genre_counts = pd.Series([genre for sublist in genre_list for genre in sublist]).value_counts()
+        
+        # Convert each genre dictionary into a list of genres and flatten
+        genre_list = genre_series.apply(lambda x: list(eval(x).values()))  # Assuming it's stored as a stringified dictionary
+        genre_flattened = [genre for sublist in genre_list for genre in sublist]
 
+        # Count the occurrence of each genre
+        genre_counts = pd.Series(genre_flattened).value_counts()
+        
+        # Create DataFrame with the top N genres
         result_df = genre_counts.head(N).reset_index()
         result_df.columns = ["Movie_Type", "Count"]
-
+        
         return result_df
+
+    def actor_count(self) -> pd.DataFrame:
+        """
+        Returns a histogram DataFrame showing the number of actors per movie vs. the movie count.
+        Also, displays a histogram plot.
+        
+        The output DataFrame will have:
+        - "Number_of_Actors" (unique actor count per movie)
+        - "Movie_Count" (number of movies with that many actors)
+        """
+        if not hasattr(self, "character_metadata") or self.character_metadata is None:
+            raise Exception("Character metadata is not loaded.")
+
+        # Ensure required columns exist
+        required_columns = {"wiki_movie_id", "actor_name"}
+        if not required_columns.issubset(self.character_metadata.columns):
+            raise Exception(f"Missing required columns: {required_columns - set(self.character_metadata.columns)}")
+
+        # Count the number of unique actors per movie
+        actor_counts = self.character_metadata.groupby("wiki_movie_id")["actor_name"].nunique()
+
+        # Create a histogram DataFrame: How many movies have X number of actors?
+        histogram = actor_counts.value_counts().reset_index()
+        histogram.columns = ["Number_of_Actors", "Movie_Count"]
+
+        # Sort the results in ascending order of number of actors
+        histogram = histogram.sort_values(by="Number_of_Actors")
+
+        # --- PLOT THE HISTOGRAM ---
+        plt.figure(figsize=(10, 6))
+        plt.bar(histogram["Number_of_Actors"], histogram["Movie_Count"], color="skyblue", edgecolor="black")
+        plt.xlabel("Number of Actors per Movie")
+        plt.ylabel("Movie Count")
+        plt.title("Histogram of Number of Actors per Movie")
+        plt.xticks(rotation=45)
+        plt.grid(axis="y", linestyle="--", alpha=0.7)
+        
+        # Show the plot
+        plt.show()
+
+        return histogram
