@@ -16,7 +16,6 @@ ax.bar(movie_type_df["Movie_Type"], movie_type_df["Count"], color="skyblue", edg
 ax.set_xlabel("Movie Type")
 ax.set_ylabel("Count")
 ax.set_title("Top Movie Types")
-plt.xticks(rotation=45, ha='right')
 st.pyplot(fig)
 
 # Plot actor_count histogram
