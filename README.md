@@ -2,7 +2,7 @@
 Advanced Programming for Data Science - Project
 
 Group members: 
-- 57322@novasbe.pt
-- 64810@novasbe.pt
-- 63529@novasbe.pt
-- 64062@novasbe.pt
+- Jakob Lindner (53722): 57322@novasbe.pt
+- Ben Bumann (64810): 64810@novasbe.pt
+- Marvin Schumann (63529): 63529@novasbe.pt
+- Valeska Pachelbel (64062): 64062@novasbe.pt
