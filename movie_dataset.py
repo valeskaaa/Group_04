@@ -303,3 +303,38 @@ class MovieDataset(BaseModel):
 
 
         return releases_per_year
+
+    def ages(self, mode: str = 'Y') -> pd.DataFrame:
+        """
+        Computes the number of births per year or per month of the year.
+
+        Args:
+            mode (str): 'Y' for year-based aggregation, 'M' for month-based aggregation.
+
+        Returns:
+            pd.DataFrame: A DataFrame showing the count of actor births per selected mode.
+        """
+        if not hasattr(self, "character_metadata") or self.character_metadata is None:
+            raise Exception("Character metadata is not loaded.")
+
+        if "actor_dob" not in self.character_metadata.columns:
+            raise Exception("Required column 'actor_dob' is missing from the dataset.")
+
+        # Convert actor_dob to datetime
+        self.character_metadata["actor_dob"] = pd.to_datetime(self.character_metadata["actor_dob"], errors="coerce")
+
+        # Default to Year if invalid mode is passed
+        mode = mode.upper()
+        if mode not in ['Y', 'M']:
+            mode = 'Y'
+
+        if mode == 'Y':
+            births = self.character_metadata["actor_dob"].dt.year.value_counts().sort_index().to_frame(name="Birth_Count").astype(int)
+            births.index = births.index.astype(int)
+            births.index.name = "Year"
+        else:
+            births = self.character_metadata["actor_dob"].dt.month.value_counts().sort_index().to_frame(name="Birth_Count").astype(int)
+            births.index = births.index.astype(int)
+            births.index.name = "Month"
+
+        return births

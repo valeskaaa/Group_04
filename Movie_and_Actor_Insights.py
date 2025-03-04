@@ -5,6 +5,9 @@ from movie_dataset import MovieDataset
 
 test_instance = MovieDataset()
 
+# Set Streamlit page configuration
+st.set_page_config(page_title="Movie & Actor Insights", page_icon="🎬", layout="wide")
+
 st.title("Movie Dataset Analysis")
 
 # Plot movie_type histogram
@@ -32,8 +35,11 @@ st.pyplot(fig)
 # Plot actor_distributions
 st.header("Actor Height Distribution")
 gender = st.selectbox("Select Gender:", ["All"] + list(test_instance.character_metadata["actor_gender"].dropna().unique()))
-min_height = st.number_input("Minimum Height (m):", min_value=1.0, max_value=2.5, value=1.5, step=0.01)
-max_height = st.number_input("Maximum Height (m):", min_value=1.0, max_value=2.5, value=2.0, step=0.01)
+col1, col2 = st.columns(2)
+with col1:
+    min_height = st.number_input("Minimum Height (m):", min_value=1.0, max_value=2.5, value=1.5, step=0.01)
+with col2:
+    max_height = st.number_input("Maximum Height (m):", min_value=1.0, max_value=2.5, value=2.0, step=0.01)
 
 actor_dist_df = test_instance.actor_distributions(gender, max_height, min_height, plot=False)
 fig, ax = plt.subplots()
