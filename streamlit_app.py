@@ -34,7 +34,6 @@ st.header("Actor Height Distribution")
 gender = st.selectbox("Select Gender:", ["All"] + list(test_instance.character_metadata["actor_gender"].dropna().unique()))
 min_height = st.number_input("Minimum Height (m):", min_value=1.0, max_value=2.5, value=1.5, step=0.01)
 max_height = st.number_input("Maximum Height (m):", min_value=1.0, max_value=2.5, value=2.0, step=0.01)
-plot_type = st.selectbox("Select Plot Type:", ["density", "histogram"])
 
 actor_dist_df = test_instance.actor_distributions(gender, max_height, min_height, plot=False)
 fig, ax = plt.subplots()
@@ -43,4 +42,5 @@ ax.set_ylabel("Density")
 ax.set_xlabel("Actor Height (m)")
 ax.set_title("Actor Height Distribution")
 st.pyplot(fig)
+
 
