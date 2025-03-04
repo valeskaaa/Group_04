@@ -268,3 +268,38 @@ class MovieDataset(BaseModel):
             plt.show()
 
         return df
+    
+    def releases(self, genre: Optional[str] = None) -> pd.DataFrame:
+        """
+        Creates a DataFrame showing the number of movies released per year.
+        
+        Args:
+            genre (Optional[str]): If provided, filters the data to include only movies of the given genre.
+            
+        Returns:
+            pd.DataFrame: A DataFrame with columns ["Year", "Movie_Count"] showing the number of movies released each year.
+        """
+        if not hasattr(self, "movie_metadata") or self.movie_metadata is None:
+            raise Exception("Movie metadata is not loaded.")
+
+        if "release_date" not in self.movie_metadata.columns or "genres" not in self.movie_metadata.columns:
+            raise Exception("Required columns (release_date, genres) are missing from the dataset.")
+
+        # Convert release_date to datetime and extract the year
+        self.movie_metadata["release_date"] = pd.to_datetime(self.movie_metadata["release_date"], errors="coerce")
+        self.movie_metadata["Year"] = self.movie_metadata["release_date"].dt.year
+
+        # Drop rows with missing years
+        df = self.movie_metadata.dropna(subset=["Year"]).copy()
+
+        # Filter by genre if specified
+        if genre:
+            df = df[df["genres"].apply(lambda x: genre in eval(x).values() if pd.notna(x) else False)]
+
+        # Count movies per year
+        releases_per_year = df["Year"].value_counts().sort_index().to_frame(name="Movie_Count").astype(int)
+        releases_per_year.index = releases_per_year.index.astype(int)
+        releases_per_year.index.name = "Year"
+
+
+        return releases_per_year
