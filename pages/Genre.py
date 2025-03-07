@@ -1,5 +1,6 @@
 import streamlit as st
 import random
+import matplotlib.pyplot as plt
 from movie_dataset import MovieDataset
 from ollama import chat, ChatResponse
 
@@ -49,10 +50,38 @@ if st.button("Shuffle"):
         response: ChatResponse = chat(model='mistral', messages=[
             {
                 'role': 'user',
-                'content': f'Classify the following movie summary into genres: {movie_summary}. Only list the genres.',
+                'content': f'Classify the following movie summary into genres: {movie_summary}. Only list the genres, separated by commas. Do not include any additional information or brackets.',
             },
         ])
         
         # Extract and display the genre classification
         llm_genres = response.message.content.strip()
         st.text_area("Genre by LLM", llm_genres)
+        
+        # Normalize and compare genres
+        identified_genres = set([genre.strip().lower() for genre in llm_genres.split(",")])
+        database_genres = set([genre.strip().lower() for genre in movie_genres])
+        
+        matching_genres = identified_genres.intersection(database_genres)
+        
+        if matching_genres:
+            st.markdown("### Successfully Detected Genres")
+            st.markdown(", ".join(matching_genres))
+        
+        if identified_genres.issubset(database_genres):
+            st.success("The genres identified by the LLM are contained in the database genres.")
+        else:
+            st.warning("The genres identified by the LLM are not fully contained in the database genres.")
+        
+        # Visualization of the score
+        genre_counts = {
+            "Database Genres": len(database_genres),
+            "LLM Genres": len(identified_genres),
+            "Matching Genres": len(matching_genres)
+        }
+        
+        fig, ax = plt.subplots()
+        ax.bar(genre_counts.keys(), genre_counts.values(), color=["skyblue", "lightcoral", "lightgreen"])
+        ax.set_ylabel("Count")
+        ax.set_title("Genre Detection Score")
+        st.pyplot(fig)
