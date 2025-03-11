@@ -56,7 +56,6 @@ class MovieDataset(BaseModel):
         - Extracts dataset if needed.
         - Dynamically loads all .tsv and .txt files into Pandas DataFrames.
         """
-
         super().__init__()
 
         # Ensure the download directory exists
@@ -74,7 +73,9 @@ class MovieDataset(BaseModel):
         self.load_all_datasets()
 
     def download_dataset(self):
-        """Downloads the dataset from the specified URL if it does not already exist."""
+        """
+        Downloads the dataset from the specified URL if it does not already exist.
+        """
         print(f"Downloading {self.dataset_filename}...")
 
         try:
@@ -91,7 +92,9 @@ class MovieDataset(BaseModel):
             print(f"Download failed: {e}")
 
     def extract_dataset(self):
-        """Extracts the dataset archive into the designated directory."""
+        """
+        Extracts the dataset archive into the designated directory.
+        """
         print("Extracting dataset...")
 
         try:
@@ -106,7 +109,6 @@ class MovieDataset(BaseModel):
         Dynamically loads all .tsv and .txt files from the extracted directory into Pandas DataFrames.
         - Each dataset is stored in a dictionary (dataframes) using the filename (without extension) as the key.
         """
-
         if not self.extracted_dir.exists():
             print(f"Error: Extracted directory {self.extracted_dir} does not exist.")
             return
@@ -143,6 +145,12 @@ class MovieDataset(BaseModel):
     def movie_type(self, N: int = 10) -> pd.DataFrame:
         """
         Returns a DataFrame with the N most common movie types (genres) and their counts.
+
+        Args:
+            N (int): Number of top movie types to return. Default is 10.
+
+        Returns:
+            pd.DataFrame: DataFrame with columns "Movie_Type" and "Count".
         """
         if not isinstance(N, int):
             raise Exception("N must be an integer.")
@@ -170,10 +178,13 @@ class MovieDataset(BaseModel):
         """
         Returns a histogram DataFrame showing the number of actors per movie vs. the movie count.
         Also, displays a histogram plot.
-        
+
         The output DataFrame will have:
         - "Number_of_Actors" (unique actor count per movie)
         - "Movie_Count" (number of movies with that many actors)
+
+        Returns:
+            pd.DataFrame: DataFrame with columns "Number_of_Actors" and "Movie_Count".
         """
         if not hasattr(self, "character_metadata") or self.character_metadata is None:
             raise Exception("Character metadata is not loaded.")
@@ -220,7 +231,6 @@ class MovieDataset(BaseModel):
         Returns:
             pd.DataFrame: Filtered actor dataset.
         """
-
         # Ensure valid input types
         if not isinstance(gender, str):
             raise Exception("Gender must be a string.")
@@ -258,11 +268,9 @@ class MovieDataset(BaseModel):
         # If plot is True, create a density plot
         if plot:
             plt.figure(figsize=(10, 6))
-            
             sns.kdeplot(df["actor_height"], color="blue", alpha=0.5)
             plt.ylabel("Density")
             plt.title(f"Density Plot of Actor Heights ({gender})")
-            
             plt.xlabel("Actor Height (m)")
             plt.grid(axis="y", linestyle="--", alpha=0.7)
             plt.show()
@@ -300,7 +308,6 @@ class MovieDataset(BaseModel):
         releases_per_year = df["Year"].value_counts().sort_index().to_frame(name="Movie_Count").astype(int)
         releases_per_year.index = releases_per_year.index.astype(int)
         releases_per_year.index.name = "Year"
-
 
         return releases_per_year
 
