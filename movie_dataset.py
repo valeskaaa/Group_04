@@ -1,9 +1,12 @@
-import os
+"""
+Module for handling downloading, extracting, and loading the CMU Movie Dataset.
+"""
+
 import tarfile
-import requests
-import pandas as pd
 from pathlib import Path
 from typing import Optional, Dict
+import requests
+import pandas as pd
 from pydantic import BaseModel, ConfigDict
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -30,7 +33,7 @@ class MovieDataset(BaseModel):
     # Dictionary to store all dynamically loaded datasets
     dataframes: Dict[str, Optional[pd.DataFrame]] = {}
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow") 
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
 
     column_names: object = {
         "movie_metadata": [
@@ -79,7 +82,7 @@ class MovieDataset(BaseModel):
         print(f"Downloading {self.dataset_filename}...")
 
         try:
-            response = requests.get(self.base_url + self.dataset_filename, stream=True)
+            response = requests.get(self.base_url + self.dataset_filename, stream=True, timeout=10)
             response.raise_for_status()
 
             with open(self.dataset_path, "wb") as file:
@@ -106,8 +109,9 @@ class MovieDataset(BaseModel):
 
     def load_all_datasets(self):
         """
-        Dynamically loads all .tsv and .txt files from the extracted directory into Pandas DataFrames.
-        - Each dataset is stored in a dictionary (dataframes) using the filename (without extension) as the key.
+        Dynamically loads all .tsv and .txt files from the extracted directory into pd DataFrames.
+        - Each dataset is stored in a dictionary (dataframes) 
+        - using the filename (without extension) as the key.
         """
         if not self.extracted_dir.exists():
             print(f"Error: Extracted directory {self.extracted_dir} does not exist.")
@@ -115,17 +119,16 @@ class MovieDataset(BaseModel):
 
         for file_path in self.extracted_dir.glob("*"):
             if file_path.suffix in [".tsv", ".txt"]:  # Load only relevant file types
-                self.load_dataset(file_path, sep="\t")
-        
-    def load_dataset(self, file_path: Path, sep: str = "\t"):
+                self.load_dataset(file_path)
+
+    def load_dataset(self, file_path: Path):
         """
         Loads a dataset file into a Pandas DataFrame and stores it in dataframes.
 
         Args:
             file_path (Path): Path to the dataset file.
-            sep (str): Separator used in the file (default is tab-separated).
         """
-        dataset_name = file_path.stem.replace('.', '_') # Extract filename without extension
+        dataset_name = file_path.stem.replace('.', '_')  # Extract filename without extension
 
         print(f"Checking file: {file_path}")  # Debugging line
 
@@ -138,40 +141,42 @@ class MovieDataset(BaseModel):
 
             setattr(self, dataset_name, df)  # Dynamically set as attribute
             print(f"Loaded dataset: {dataset_name}, Shape: {df.shape}")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             print(f"Error loading {file_path}: {e}")
             setattr(self, dataset_name, None)
-    
-    def movie_type(self, N: int = 10) -> pd.DataFrame:
+
+    def movie_type(self, top_n: int = 10) -> pd.DataFrame:
         """
         Returns a DataFrame with the N most common movie types (genres) and their counts.
 
         Args:
-            N (int): Number of top movie types to return. Default is 10.
+            top_n (int): Number of top movie types to return. Default is 10.
 
         Returns:
             pd.DataFrame: DataFrame with columns "Movie_Type" and "Count".
         """
-        if not isinstance(N, int):
-            raise Exception("N must be an integer.")
-        
+        if not isinstance(top_n, int):
+            raise ValueError("top_n must be an integer.")
+
         if not hasattr(self, "movie_metadata") or self.movie_metadata is None:
-            raise Exception("Movie metadata is not loaded.")
-        
+            raise ValueError("Movie metadata is not loaded.")
+
         # Extract genres from the last column, which is a dictionary
         genre_series = self.movie_metadata["genres"].dropna()
-        
+
         # Convert each genre dictionary into a list of genres and flatten
-        genre_list = genre_series.apply(lambda x: list(eval(x).values()))  # Assuming it's stored as a stringified dictionary
+        genre_list = genre_series.apply(
+            lambda x: list(eval(x).values())  # Assuming it's stored as a stringified dictionary
+        )
         genre_flattened = [genre for sublist in genre_list for genre in sublist]
 
         # Count the occurrence of each genre
         genre_counts = pd.Series(genre_flattened).value_counts()
-        
+
         # Create DataFrame with the top N genres
-        result_df = genre_counts.head(N).reset_index()
+        result_df = genre_counts.head(top_n).reset_index()
         result_df.columns = ["Movie_Type", "Count"]
-        
+
         return result_df
 
     def actor_count(self) -> pd.DataFrame:
@@ -187,12 +192,15 @@ class MovieDataset(BaseModel):
             pd.DataFrame: DataFrame with columns "Number_of_Actors" and "Movie_Count".
         """
         if not hasattr(self, "character_metadata") or self.character_metadata is None:
-            raise Exception("Character metadata is not loaded.")
+            raise ValueError("Character metadata is not loaded.")
 
         # Ensure required columns exist
         required_columns = {"wiki_movie_id", "actor_name"}
         if not required_columns.issubset(self.character_metadata.columns):
-            raise Exception(f"Missing required columns: {required_columns - set(self.character_metadata.columns)}")
+            raise ValueError(
+                f"Missing required columns: {
+                    required_columns - set(self.character_metadata.columns)}"
+            )
 
         # Count the number of unique actors per movie
         actor_counts = self.character_metadata.groupby("wiki_movie_id")["actor_name"].nunique()
@@ -206,21 +214,27 @@ class MovieDataset(BaseModel):
 
         # --- PLOT THE HISTOGRAM ---
         plt.figure(figsize=(10, 6))
-        plt.bar(histogram["Number_of_Actors"], histogram["Movie_Count"], color="skyblue", edgecolor="black")
+        plt.bar(histogram["Number_of_Actors"],
+                histogram["Movie_Count"],
+                color="skyblue",
+                edgecolor="black")
         plt.xlabel("Number of Actors per Movie")
         plt.ylabel("Movie Count")
         plt.title("Histogram of Number of Actors per Movie")
         plt.xticks(rotation=45)
         plt.grid(axis="y", linestyle="--", alpha=0.7)
-        
+
         # Show the plot
         plt.show()
 
         return histogram
 
-    def actor_distributions(self, gender: str, max_height: float, min_height: float, plot: bool = False) -> pd.DataFrame:
+    def actor_distributions(
+        self, gender: str, max_height: float, min_height: float, plot: bool = False
+    ) -> pd.DataFrame:
         """
-        Filters actor data based on gender and height range, and optionally plots the height distribution.
+        Filters actor data based on gender and height range, 
+        - and optionally plots the height distribution.
 
         Args:
             gender (str): "All" or a specific gender from the dataset.
@@ -233,21 +247,26 @@ class MovieDataset(BaseModel):
         """
         # Ensure valid input types
         if not isinstance(gender, str):
-            raise Exception("Gender must be a string.")
+            raise ValueError("Gender must be a string.")
         if not isinstance(max_height, (int, float)) or not isinstance(min_height, (int, float)):
-            raise Exception("Height limits must be numerical values.")
+            raise ValueError("Height limits must be numerical values.")
 
         # Ensure the dataset is loaded
         if not hasattr(self, "character_metadata") or self.character_metadata is None:
-            raise Exception("Character metadata is not loaded.")
+            raise ValueError("Character metadata is not loaded.")
 
         # Ensure required columns exist
         required_columns = {"actor_gender", "actor_height"}
         if not required_columns.issubset(self.character_metadata.columns):
-            raise Exception(f"Missing required columns: {required_columns - set(self.character_metadata.columns)}")
+            raise ValueError(
+                f"Missing required columns: {
+                    required_columns - set(self.character_metadata.columns)}"
+            )
 
         # Convert heights to numerical, forcing errors to NaN
-        self.character_metadata["actor_height"] = pd.to_numeric(self.character_metadata["actor_height"], errors="coerce")
+        self.character_metadata["actor_height"] = pd.to_numeric(
+            self.character_metadata["actor_height"], errors="coerce"
+        )
 
         # Drop missing height values
         df = self.character_metadata.dropna(subset=["actor_height"]).copy()
@@ -259,7 +278,7 @@ class MovieDataset(BaseModel):
         valid_genders = df["actor_gender"].dropna().unique().tolist() + ["All"]
         if gender != "All":
             if gender not in valid_genders:
-                raise Exception(f"Invalid gender value. Must be one of: {valid_genders}")
+                raise ValueError(f"Invalid gender value. Must be one of: {valid_genders}")
             df = df[df["actor_gender"] == gender]
 
         # Apply height range filter
@@ -276,25 +295,29 @@ class MovieDataset(BaseModel):
             plt.show()
 
         return df
-    
+
     def releases(self, genre: Optional[str] = None) -> pd.DataFrame:
         """
         Creates a DataFrame showing the number of movies released per year.
-        
+
         Args:
-            genre (Optional[str]): If provided, filters the data to include only movies of the given genre.
-            
+            genre (Optional[str]): If provided, 
+            - filters the data to include only movies of the given genre.
+
         Returns:
-            pd.DataFrame: A DataFrame with columns ["Year", "Movie_Count"] showing the number of movies released each year.
+            pd.DataFrame: A DataFrame with columns ["Year", "Movie_Count"]
+            - showing the number of movies released each year.
         """
         if not hasattr(self, "movie_metadata") or self.movie_metadata is None:
-            raise Exception("Movie metadata is not loaded.")
+            raise ValueError("Movie metadata is not loaded.")
 
         if "release_date" not in self.movie_metadata.columns or "genres" not in self.movie_metadata.columns:
-            raise Exception("Required columns (release_date, genres) are missing from the dataset.")
+            raise ValueError("Required columns (release_date, genres) are missing from the dataset.")
 
         # Convert release_date to datetime and extract the year
-        self.movie_metadata["release_date"] = pd.to_datetime(self.movie_metadata["release_date"], errors="coerce")
+        self.movie_metadata["release_date"] = pd.to_datetime(
+            self.movie_metadata["release_date"], errors="coerce"
+        )
         self.movie_metadata["Year"] = self.movie_metadata["release_date"].dt.year
 
         # Drop rows with missing years
@@ -302,7 +325,8 @@ class MovieDataset(BaseModel):
 
         # Filter by genre if specified
         if genre:
-            df = df[df["genres"].apply(lambda x: genre in eval(x).values() if pd.notna(x) else False)]
+            df = df[df["genres"].apply(
+                lambda x: genre in eval(x).values() if pd.notna(x) else False)]
 
         # Count movies per year
         releases_per_year = df["Year"].value_counts().sort_index().to_frame(name="Movie_Count").astype(int)
@@ -322,13 +346,15 @@ class MovieDataset(BaseModel):
             pd.DataFrame: A DataFrame showing the count of actor births per selected mode.
         """
         if not hasattr(self, "character_metadata") or self.character_metadata is None:
-            raise Exception("Character metadata is not loaded.")
+            raise ValueError("Character metadata is not loaded.")
 
         if "actor_dob" not in self.character_metadata.columns:
-            raise Exception("Required column 'actor_dob' is missing from the dataset.")
+            raise ValueError("Required column 'actor_dob' is missing from the dataset.")
 
         # Convert actor_dob to datetime
-        self.character_metadata["actor_dob"] = pd.to_datetime(self.character_metadata["actor_dob"], errors="coerce")
+        self.character_metadata["actor_dob"] = pd.to_datetime(
+            self.character_metadata["actor_dob"], errors="coerce"
+        )
 
         # Default to Year if invalid mode is passed
         mode = mode.upper()
@@ -336,11 +362,15 @@ class MovieDataset(BaseModel):
             mode = 'Y'
 
         if mode == 'Y':
-            births = self.character_metadata["actor_dob"].dt.year.value_counts().sort_index().to_frame(name="Birth_Count").astype(int)
+            births = self.character_metadata["actor_dob"].dt.year.value_counts().sort_index().to_frame(
+                name="Birth_Count"
+            ).astype(int)
             births.index = births.index.astype(int)
             births.index.name = "Year"
         else:
-            births = self.character_metadata["actor_dob"].dt.month.value_counts().sort_index().to_frame(name="Birth_Count").astype(int)
+            births = self.character_metadata["actor_dob"].dt.month.value_counts().sort_index().to_frame(
+                name="Birth_Count"
+            ).astype(int)
             births.index = births.index.astype(int)
             births.index.name = "Month"
 
