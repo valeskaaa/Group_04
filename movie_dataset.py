@@ -197,7 +197,8 @@ class MovieDataset(BaseModel):
         # Ensure required columns exist
         required_columns = {"wiki_movie_id", "actor_name"}
         if not required_columns.issubset(self.character_metadata.columns):
-            raise ValueError(f"Missing required columns: {required_columns - set(self.character_metadata.columns)}")
+            missing_cols = required_columns - set(self.character_metadata.columns)
+            raise ValueError(f"Missing required columns: {missing_cols}")
 
         # Count the number of unique actors per movie
         actor_counts = self.character_metadata.groupby("wiki_movie_id")["actor_name"].nunique()
@@ -323,7 +324,9 @@ class MovieDataset(BaseModel):
                 lambda x: genre in eval(x).values() if pd.notna(x) else False)]
 
         # Count movies per year
-        releases_per_year = df["Year"].value_counts().sort_index().to_frame(name="Movie_Count").astype(int)
+        releases_per_year = (
+            df["Year"].value_counts().sort_index().to_frame(name="Movie_Count").astype(int)
+        )
         releases_per_year.index = releases_per_year.index.astype(int)
         releases_per_year.index.name = "Year"
 
@@ -356,9 +359,13 @@ class MovieDataset(BaseModel):
             mode = 'Y'
 
         if mode == 'Y':
-            births = self.character_metadata["actor_dob"].dt.year.value_counts().sort_index().to_frame(
-                name="Birth_Count"
-            ).astype(int)
+            births = (
+                self.character_metadata["actor_dob"]
+                .dt.year.value_counts()
+                .sort_index()
+                .to_frame(name="Birth_Count")
+                .astype(int)
+            )
             births.index = births.index.astype(int)
             births.index.name = "Year"
         else:
