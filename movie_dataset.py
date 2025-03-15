@@ -197,10 +197,7 @@ class MovieDataset(BaseModel):
         # Ensure required columns exist
         required_columns = {"wiki_movie_id", "actor_name"}
         if not required_columns.issubset(self.character_metadata.columns):
-            raise ValueError(
-                f"Missing required columns: {
-                    required_columns - set(self.character_metadata.columns)}"
-            )
+            raise ValueError(f"Missing required columns: {required_columns - set(self.character_metadata.columns)}")
 
         # Count the number of unique actors per movie
         actor_counts = self.character_metadata.groupby("wiki_movie_id")["actor_name"].nunique()
@@ -258,10 +255,7 @@ class MovieDataset(BaseModel):
         # Ensure required columns exist
         required_columns = {"actor_gender", "actor_height"}
         if not required_columns.issubset(self.character_metadata.columns):
-            raise ValueError(
-                f"Missing required columns: {
-                    required_columns - set(self.character_metadata.columns)}"
-            )
+            raise ValueError(f"Missing required columns: {required_columns - set(self.character_metadata.columns)}")
 
         # Convert heights to numerical, forcing errors to NaN
         self.character_metadata["actor_height"] = pd.to_numeric(
